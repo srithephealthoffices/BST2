@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบติดตามการบำบัดยาเสพติดแบบบูรณาการ - รวมพลัง รักศรัทธา</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script>
+        // ตั้งค่า Firebase Configuration
+        const __firebase_config = {
+            apiKey: "AIzaSyBS5NwxnwUL5Iq_743hamuR_r3z_Mvw_w4",
+            authDomain: "bst1-8e315.firebaseapp.com",
+            projectId: "bst1-8e315",
+            storageBucket: "bst1-8e315.firebasestorage.app",
+            messagingSenderId: "903885676210",
+            appId: "1:903885676210:web:c82b6452744eebc590f3ab",
+            measurementId: "G-VFGMTEBSV3"
+        };
+        const __app_id = 'srithep-rehab-tracker-2026';
+
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Sarabun', 'sans-serif'] },
+                    fontSize: { 'xxs': '0.65rem' },
+                    colors: {
+                        brand: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Sarabun', 'sans-serif'; background-color: #f8fafc; }
+        .canva-sheet-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .canva-sheet-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+    <div id="root" class="flex-grow flex flex-col"></div>
+
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- ส่วนเชื่อมต่อ Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'srithep-rehab-tracker-2026';
+        let firebaseConfig = (typeof __firebase_config !== 'undefined') ? __firebase_config : null;
+        let app = null, db = null, auth = null;
+
+        if (firebaseConfig && firebaseConfig.apiKey) {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+            } catch (err) { console.warn("Firebase Init failed:", err); }
+        }
+
+        window.firebase = { app, db, auth, appId, isFirebaseValid: !!app, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, getDocs, signInAnonymously, signInWithCustomToken, onAuthStateChanged };
+        window.dispatchEvent(new Event('firebase-initialized'));
+    </script>
+
+    <!-- ส่วนเนื้อหา Application (ดึงมาจากไฟล์เดิมของคุณ) -->
+    <script type="text/babel">
+        // คุณสามารถนำโค้ดในส่วน <script type="text/babel"> ของไฟล์เดิมมาวางต่อจากบรรทัดนี้ได้เลยครับ
+const { useState, useEffect, useRef, useMemo } = React;
+
+        const HOSPITALS = [
+            "โรงพยาบาลศรีเทพ",
+            "โรงพยาบาลส่งเสริมสุขภาพตำบลโคกสะอาด",
+            "โรงพยาบาลส่งเสริมสุขภาพตำบลสันติธรรม",
+            "โรงพยาบาลส่งเสริมสุขภาพตำบลทุ่งเศรษฐี",
+            "โรงพยาบาลส่งเสริมสุขภาพตำบลวังขอน",
+            "โรงพยาบาลส่งเสริมสุขภาพตำบลเกาะแก้ว",
+            "โรงพยาบาลส่งเสริมสุขภาพตำบลหนองย่างทอย",
+            "โรงพยาบาลส่งเสริมสุขภาพตำบลนาตะกรุด",
+            "โรงพยาบาลส่งเสริมสุขภาพตำบลนาน้ำโครม",
+            "โรงพยาบาลส่งเสริมสุขภาพตำบลนาสนุ่น"
+        ];
+
+        const TRACKING_ROUNDS = [
+            { id: "2w", name: "2 สัปดาห์", label: "รอบที่ 1: 2 สัปดาห์ (บวก 14 วัน)" },
+            { id: "1m", name: "1 เดือน", label: "รอบที่ 2: 1 เดือน (บวก 1 เดือน)" },
+            { id: "2m", name: "2 เดือน", label: "รอบที่ 3: 2 เดือน (บวก 2 เดือน)" },
+            { id: "3m", name: "3 เดือน", label: "รอบที่ 4: 3 เดือน (บวก 3 เดือน)" },
+            { id: "6m", name: "6 เดือน", label: "รอบที่ 5: 6 เดือน (บวก 6 เดือน)" },
+            { id: "9m", name: "9 เดือน", label: "รอบที่ 6: 9 เดือน (บวก 9 เดือน)" },
+            { id: "12m", name: "12 เดือน", label: "รอบที่ 7: 12 เดือน (บวก 12 เดือน)" }
+        ];
+
+        const formatThaiDate = (dateStr) => {
+            if (!dateStr) return "-";
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            const yearBE = parseInt(parts[0]) + 543;
+            return `${parts[2]}/${parts[1]}/${yearBE}`;
+        };
+
+        const calculateTargetDate = (baseDateStr, roundId) => {
+            const date = new Date(baseDateStr);
+            if (isNaN(date.getTime())) return baseDateStr;
+            
+            if (roundId === "2 สัปดาห์" || roundId === "2w") {
+                date.setDate(date.getDate() + 14);
+            } else if (roundId === "1 เดือน" || roundId === "1m") {
+                date.setMonth(date.getMonth() + 1);
+            } else if (roundId === "2 เดือน" || roundId === "2m") {
+                date.setMonth(date.getMonth() + 2);
+            } else if (roundId === "3 เดือน" || roundId === "3m") {
+                date.setMonth(date.getMonth() + 3);
+            } else if (roundId === "6 เดือน" || roundId === "6m") {
+                date.setMonth(date.getMonth() + 6);
+            } else if (roundId === "9 เดือน" || roundId === "9m") {
+                date.setMonth(date.getMonth() + 9);
+            } else if (roundId === "12 เดือน" || roundId === "12m") {
+                date.setFullYear(date.getFullYear() + 1);
+            }
+            return date.toISOString().split('T')[0];
+        };
+
+        const DEFAULT_USERS = [
+            { id: "U001", username: "admin", password: "1234", name: "ผู้ดูแลระบบสูงสุด (Super Admin)", role: "superadmin", hospital: "ทั้งหมด" },
+            { id: "U002", username: "srithep_hospital", password: "1234", name: "เจ้าหน้าที่ รพ.ศรีเทพ", role: "staff", hospital: "โรงพยาบาลศรีเทพ" },
+            { id: "U003", username: "khoksaat_staff", password: "1234", name: "เจ้าหน้าที่ รพ.สต.โคกสะอาด", role: "staff", hospital: "โรงพยาบาลส่งเสริมสุขภาพตำบลโคกสะอาด" }
+        ];
+
+        const INITIAL_PATIENTS = [
+            { id: "P001", name: "นายสมชาย ใจดี", age: 34, group: "โรงพยาบาลศรีเทพ", phone: "081-2345678", registerDate: "2026-06-24" },
+            { id: "P002", name: "นางสาวสมหญิง รักสงบ", age: 28, group: "โรงพยาบาลส่งเสริมสุขภาพตำบลโคกสะอาด", phone: "089-8765432", registerDate: "2026-06-24" },
+            { id: "P003", name: "นายวิชัย กล้าหาญ", age: 41, group: "โรงพยาบาลส่งเสริมสุขภาพตำบลสันติธรรม", phone: "082-3456789", registerDate: "2026-06-24" },
+            { id: "P004", name: "นายมานพ เพียรพยายาม", age: 25, group: "โรงพยาบาลส่งเสริมสุขภาพตำบลทุ่งเศรษฐี", phone: "083-4567890", registerDate: "2026-06-24" },
+            { id: "P005", name: "นางสาวศิริพร อ่อนโยน", age: 30, group: "โรงพยาบาลส่งเสริมสุขภาพตำบลวังขอน", phone: "084-5678901", registerDate: "2026-06-24" }
+        ];
+
+        const INITIAL_FOLLOWUPS = [
+            { id: "F001", patientName: "นายสมชาย ใจดี", group: "โรงพยาบาลศรีเทพ", checkDate: "2026-07-08", round: "2 สัปดาห์", attended: true, drugDetected: false, note: "ร่างกายเริ่มปรับตัวได้ดี ไม่มีอาการลงแดง" },
+            { id: "F002", patientName: "นางสาวสมหญิง รักสงบ", group: "โรงพยาบาลส่งเสริมสุขภาพตำบลโคกสะอาด", checkDate: "2026-07-08", round: "2 สัปดาห์", attended: true, drugDetected: false, note: "จิตใจแจ่มใส ได้รับกำลังใจดีจากคนในบ้าน" },
+            { id: "F003", patientName: "นายวิชัย กล้าหาญ", group: "โรงพยาบาลส่งเสริมสุขภาพตำบลสันติธรรม", checkDate: "2026-07-24", round: "1 เดือน", attended: false, drugDetected: null, note: "ขาดการนัดหมายเนื่องจากติดทำธุระต่างจังหวัด" },
+            { id: "F004", patientName: "นายมานพ เพียรพยายาม", group: "โรงพยาบาลส่งเสริมสุขภาพตำบลทุ่งเศรษฐี", checkDate: "2026-07-08", round: "2 สัปดาห์", attended: true, drugDetected: true, note: "ตรวจปัสสาวะพบสารแอมเฟตามีนจาง เจ้าหน้าที่เร่งตักเตือนและบำบัดจิตเพิ่ม" }
+        ];
+
+        const safeGetStorage = (key, defaultValue) => {
+            try {
+                const saved = localStorage.getItem(key);
+                if (saved) return JSON.parse(saved);
+                const sessionSaved = sessionStorage.getItem(key);
+                if (sessionSaved) return JSON.parse(sessionSaved);
+            } catch (e) {
+                console.warn("LocalStorage access restricted inside iframe sandbox.");
+            }
+            if (!window.__globalStateCache) window.__globalStateCache = {};
+            if (window.__globalStateCache[key]) return window.__globalStateCache[key];
+            return defaultValue;
+        };
+
+        const safeSetStorage = (key, value) => {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+                sessionStorage.setItem(key, JSON.stringify(value));
+            } catch (e) {}
+            if (!window.__globalStateCache) window.__globalStateCache = {};
+            window.__globalStateCache[key] = value;
+            return true;
+        };
+
+        // Helper functions to load cache synchronously
+        const getInitialUsers = () => {
+            const data = safeGetStorage('srithep_rehab_users_v5', null);
+            return (Array.isArray(data) && data.length > 0) ? data : DEFAULT_USERS;
+        };
+        const getInitialPatients = () => {
+            const data = safeGetStorage('srithep_rehab_patients_v5', null);
+            return (Array.isArray(data) && data.length > 0) ? data : INITIAL_PATIENTS;
+        };
+        const getInitialFollowups = () => {
+            const data = safeGetStorage('srithep_rehab_followups_v5', null);
+            return (Array.isArray(data) && data.length > 0) ? data : INITIAL_FOLLOWUPS;
+        };
+
+        function IntegrationLogo() {
+            return (
+                <svg viewBox="0 0 100 100" className="w-12 h-12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="46" fill="#f0fdf4" stroke="#86efac" strokeWidth="2" strokeDasharray="4 4" />
+                    <path d="M50 12 C35 12 25 25 25 40 C25 55 50 85 50 85 C50 85 75 55 75 40 C75 25 65 12 50 12 Z" fill="#15803d" opacity="0.15"/>
+                    <circle cx="50" cy="50" r="18" fill="#15803d" />
+                    <path d="M50 15 L50 85 M15 50 L85 50" stroke="#16a34a" strokeWidth="2" strokeDasharray="2 2" />
+                    <path d="M50 56 C50 56 42 51 42 45 C42 41 45 38 49 38 C51 38 52 40 52 40 C52 40 53 38 55 38 C59 38 62 41 62 45 C62 51 50 56 50 56 Z" fill="#ffffff" />
+                    <circle cx="50" cy="15" r="5" fill="#22c55e" />
+                    <circle cx="15" cy="50" r="5" fill="#3b82f6" />
+                    <circle cx="85" cy="50" r="5" fill="#ec4899" />
+                    <circle cx="50" cy="85" r="5" fill="#f59e0b" />
+                </svg>
+            );
+        }
+
+        function App() {
+            // Load Initial States Synchronously to prevent Race Conditions / Refresh wipes
+            const [users, setUsers] = useState(getInitialUsers);
+            const [patients, setPatients] = useState(getInitialPatients);
+            const [followups, setFollowups] = useState(getInitialFollowups);
+            const [currentUser, setCurrentUser] = useState(() => safeGetStorage('srithep_rehab_curr_user_v5', null));
+            
+            // Real-time Cloud state indicator
+            const [firebaseReady, setFirebaseReady] = useState(false);
+            const [firebaseUser, setFirebaseUser] = useState(null);
+
+            const [username, setUsername] = useState("");
+            const [password, setPassword] = useState("");
+            const [loginError, setLoginError] = useState("");
+
+            const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+            const [deleteModal, setDeleteModal] = useState({ show: false, targetId: null, targetType: 'followup' });
+            const [activeTab, setActiveTab] = useState("dashboard");
+            const [dashboardScope, setDashboardScope] = useState("all");
+
+            // Form inputs
+            const [newPatient, setNewPatient] = useState({ 
+                name: '', 
+                age: '', 
+                group: HOSPITALS[0], 
+                phone: '', 
+                registerDate: '2026-06-24' 
+            });
+
+            const [newFollowup, setNewFollowup] = useState({ 
+                patientId: '', 
+                group: HOSPITALS[0], 
+                round: TRACKING_ROUNDS[0].name,
+                attended: true, 
+                drugDetected: false, 
+                checkDate: '2026-07-08', 
+                note: '' 
+            });
+
+            const [newUser, setNewUser] = useState({
+                username: '',
+                password: '',
+                name: '',
+                role: 'staff',
+                hospital: HOSPITALS[0]
+            });
+
+            // 1. Instantly save state to localStorage / sessionStorage on updates
+            useEffect(() => {
+                safeSetStorage('srithep_rehab_users_v5', users);
+                safeSetStorage('srithep_rehab_patients_v5', patients);
+                safeSetStorage('srithep_rehab_followups_v5', followups);
+                safeSetStorage('srithep_rehab_curr_user_v5', currentUser);
+            }, [users, patients, followups, currentUser]);
+
+            // 2. Setup Real-time Firebase Firestore database sync
+            useEffect(() => {
+                const triggerDbInit = async () => {
+                    const fb = window.firebase;
+                    if (fb && fb.isFirebaseValid && fb.auth) {
+                        try {
+                            // Authenticate FIRST (Rule 3)
+                            let loggedInUser = null;
+                            if (fb.initialAuthToken) {
+                                const creds = await fb.signInWithCustomToken(fb.auth, fb.initialAuthToken);
+                                loggedInUser = creds.user;
+                            } else {
+                                const creds = await fb.signInAnonymously(fb.auth);
+                                loggedInUser = creds.user;
+                            }
+
+                            if (!loggedInUser) return;
+                            setFirebaseUser(loggedInUser);
+                            setFirebaseReady(true);
+
+                            // Strict collection paths (Rule 1)
+                            const usersCol = fb.collection(fb.db, 'artifacts', fb.appId, 'public', 'data', 'users');
+                            const patientsCol = fb.collection(fb.db, 'artifacts', fb.appId, 'public', 'data', 'patients');
+                            const followupsCol = fb.collection(fb.db, 'artifacts', fb.appId, 'public', 'data', 'followups');
+
+                            // Synchronize Users Realtime
+                            const unsubUsers = fb.onSnapshot(usersCol, (snapshot) => {
+                                if (!fb.auth.currentUser) return;
+                                const list = [];
+                                snapshot.forEach(doc => {
+                                    list.push({ id: doc.id, ...doc.data() });
+                                });
+                                if (list.length > 0) {
+                                    setUsers(list);
+                                } else {
+                                    // Bootstrap fallback
+                                    DEFAULT_USERS.forEach(async (u) => {
+                                        await fb.setDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'users', u.id), u);
+                                    });
+                                }
+                            });
+
+                            // Synchronize Patients Realtime
+                            const unsubPatients = fb.onSnapshot(patientsCol, (snapshot) => {
+                                if (!fb.auth.currentUser) return;
+                                const list = [];
+                                snapshot.forEach(doc => {
+                                    list.push({ id: doc.id, ...doc.data() });
+                                });
+                                if (list.length > 0) {
+                                    list.sort((a, b) => b.id.localeCompare(a.id));
+                                    setPatients(list);
+                                } else {
+                                    // Bootstrap local cache patients to empty cloud
+                                    const localCache = getInitialPatients();
+                                    localCache.forEach(async (p) => {
+                                        await fb.setDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'patients', p.id), p);
+                                    });
+                                }
+                            });
+
+                            // Synchronize Followups Realtime
+                            const unsubFollowups = fb.onSnapshot(followupsCol, (snapshot) => {
+                                if (!fb.auth.currentUser) return;
+                                const list = [];
+                                snapshot.forEach(doc => {
+                                    list.push({ id: doc.id, ...doc.data() });
+                                });
+                                if (list.length > 0) {
+                                    list.sort((a, b) => b.id.localeCompare(a.id));
+                                    setFollowups(list);
+                                } else {
+                                    // Bootstrap local cache followups to empty cloud
+                                    const localCache = getInitialFollowups();
+                                    localCache.forEach(async (f) => {
+                                        await fb.setDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'followups', f.id), f);
+                                    });
+                                }
+                            });
+
+                            return () => {
+                                unsubUsers();
+                                unsubPatients();
+                                unsubFollowups();
+                            };
+
+                        } catch (err) {
+                            console.warn("Could not connect to Firebase Cloud. Operating in local cache mode.", err);
+                        }
+                    }
+                };
+
+                window.addEventListener('firebase-initialized', triggerDbInit);
+                if (window.firebase && window.firebase.isFirebaseValid) {
+                    triggerDbInit();
+                }
+                return () => {
+                    window.removeEventListener('firebase-initialized', triggerDbInit);
+                };
+            }, []);
+
+            // Handle hospital restrictions on user login
+            useEffect(() => {
+                if (currentUser && currentUser.hospital !== "ทั้งหมด") {
+                    setNewPatient(prev => ({ ...prev, group: currentUser.hospital }));
+                    setNewFollowup(prev => ({ ...prev, group: currentUser.hospital }));
+                    setNewUser(prev => ({ ...prev, hospital: currentUser.hospital }));
+                }
+            }, [currentUser]);
+
+            const triggerToast = (message, type = 'success') => {
+                setToast({ show: true, message, type });
+                setTimeout(() => {
+                    setToast({ show: false, message: '', type: 'success' });
+                }, 3000);
+            };
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                const matched = users.find(u => u.username.toLowerCase() === username.trim().toLowerCase() && u.password === password);
+                if (matched) {
+                    setCurrentUser(matched);
+                    setLoginError("");
+                    setUsername("");
+                    setPassword("");
+                    setActiveTab("dashboard");
+                    setDashboardScope(matched.hospital === "ทั้งหมด" ? "all" : "own");
+                    triggerToast(`ลงทะเบียนเข้าใช้งานสิทธิ์คุณ ${matched.name} เรียบร้อย`, "success");
+                } else {
+                    setLoginError("ไม่พบข้อมูลผู้ใช้งานหรือรหัสผ่านผิดพลาด กรุณาลองอีกครั้ง");
+                }
+            };
+
+            const handleLogout = () => {
+                setCurrentUser(null);
+                setActiveTab("dashboard");
+                triggerToast("ลงชื่อออกจากระบบและจัดเก็บความปลอดภัยเรียบร้อย", "info");
+            };
+
+            // Safe increments for IDs to prevent collision on deletion
+            const getNextUserId = () => {
+                const max = users.reduce((acc, curr) => {
+                    const idNum = parseInt(curr.id.replace('U', ''), 10);
+                    return !isNaN(idNum) && idNum > acc ? idNum : acc;
+                }, 0);
+                return 'U' + String(max + 1).padStart(3, '0');
+            };
+
+            const getNextPatientId = () => {
+                const max = patients.reduce((acc, curr) => {
+                    const idNum = parseInt(curr.id.replace('P', ''), 10);
+                    return !isNaN(idNum) && idNum > acc ? idNum : acc;
+                }, 0);
+                return 'P' + String(max + 1).padStart(3, '0');
+            };
+
+            const getNextFollowupId = () => {
+                const max = followups.reduce((acc, curr) => {
+                    const idNum = parseInt(curr.id.replace('F', ''), 10);
+                    return !isNaN(idNum) && idNum > acc ? idNum : acc;
+                }, 0);
+                return 'F' + String(max + 1).padStart(3, '0');
+            };
+
+            const handleAddUser = async (e) => {
+                e.preventDefault();
+                if (!newUser.username.trim() || !newUser.password.trim() || !newUser.name.trim()) {
+                    triggerToast("กรุณากรอกข้อมูลบัญชีให้ครบถ้วน", "error");
+                    return;
+                }
+                if (users.some(u => u.username.toLowerCase() === newUser.username.toLowerCase())) {
+                    triggerToast("ชื่อบัญชีผู้ใช้งานนี้ ซ้ำกับที่มีอยู่เดิมในระบบ", "error");
+                    return;
+                }
+
+                const uId = getNextUserId();
+                const addedUser = {
+                    id: uId,
+                    username: newUser.username.trim(),
+                    password: newUser.password.trim(),
+                    name: newUser.name.trim(),
+                    role: newUser.role,
+                    hospital: newUser.role === 'superadmin' ? 'ทั้งหมด' : newUser.hospital
+                };
+
+                setUsers(prev => [...prev, addedUser]);
+
+                if (firebaseReady) {
+                    const fb = window.firebase;
+                    try {
+                        await fb.setDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'users', uId), addedUser);
+                    } catch (err) {
+                        console.warn(err);
+                    }
+                }
+                triggerToast("เพิ่มบัญชีผู้ปฏิบัติงานใหม่สำเร็จ");
+                setNewUser({
+                    username: '',
+                    password: '',
+                    name: '',
+                    role: 'staff',
+                    hospital: currentUser?.hospital !== "ทั้งหมด" ? currentUser.hospital : HOSPITALS[0]
+                });
+            };
+
+            const handleDeleteUser = async (id) => {
+                const target = users.find(u => u.id === id);
+                if (target?.username === 'admin') {
+                    triggerToast("ไม่สามารถลบบัญชีหลักสูงสุด (admin) ได้", "error");
+                    return;
+                }
+
+                setUsers(prev => prev.filter(u => u.id !== id));
+
+                if (firebaseReady) {
+                    const fb = window.firebase;
+                    try {
+                        await fb.deleteDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'users', id));
+                    } catch (err) {
+                        console.warn(err);
+                    }
+                }
+                triggerToast("ลบข้อมูลบัญชีผู้ปฏิบัติงานเรียบร้อยแล้ว");
+            };
+
+            const handleAddPatient = async (e) => {
+                e.preventDefault();
+                if (!newPatient.name.trim()) {
+                    triggerToast("กรุณากรอกชื่อจริงพร้อมคำนำหน้า", "error");
+                    return;
+                }
+
+                const assignedHospital = currentUser.hospital === "ทั้งหมด" ? newPatient.group : currentUser.hospital;
+                const pId = getNextPatientId();
+                const added = { 
+                    ...newPatient, 
+                    id: pId,
+                    group: assignedHospital
+                };
+                
+                setPatients(prev => [added, ...prev]);
+
+                if (firebaseReady) {
+                    const fb = window.firebase;
+                    try {
+                        await fb.setDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'patients', pId), added);
+                    } catch (err) {
+                        console.warn(err);
+                    }
+                }
+                triggerToast("ขึ้นทะเบียนผู้บำบัดรักษาเรียบร้อย");
+
+                setNewPatient({ 
+                    name: '', 
+                    age: '', 
+                    group: currentUser.hospital === "ทั้งหมด" ? HOSPITALS[0] : currentUser.hospital, 
+                    phone: '', 
+                    registerDate: '2026-06-24' 
+                });
+            };
+
+            const handleAddFollowup = async (e) => {
+                e.preventDefault();
+                let selectedName = "";
+                let selectedGroup = currentUser.hospital === "ทั้งหมด" ? newFollowup.group : currentUser.hospital;
+
+                if (newFollowup.patientId === "custom") {
+                    selectedName = document.getElementById("customNameInput").value;
+                    if (!selectedName?.trim()) {
+                        triggerToast("กรุณากรอกชื่อจริงผู้ป่วยกรณีเร่งด่วน", "error");
+                        return;
+                    }
+                } else {
+                    const pat = patients.find(p => p.id === newFollowup.patientId);
+                    if (!pat) {
+                        triggerToast("กรุณาเลือกรายชื่อผู้บำบัดสารเสพติดก่อนบันทึก", "error");
+                        return;
+                    }
+                    selectedName = pat.name;
+                    selectedGroup = pat.group; 
+                }
+
+                const fId = getNextFollowupId();
+                const added = {
+                    id: fId,
+                    patientName: selectedName,
+                    group: selectedGroup,
+                    round: newFollowup.round,
+                    checkDate: newFollowup.checkDate,
+                    attended: newFollowup.attended,
+                    drugDetected: newFollowup.attended ? newFollowup.drugDetected : null,
+                    note: newFollowup.note
+                };
+
+                setFollowups(prev => [added, ...prev]);
+
+                if (firebaseReady) {
+                    const fb = window.firebase;
+                    try {
+                        await fb.setDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'followups', fId), added);
+                    } catch (err) {
+                        console.warn(err);
+                    }
+                }
+                triggerToast("บันทึกการส่งรอบความก้าวหน้าลง Canva Sheet เรียบร้อย");
+
+                setNewFollowup({ 
+                    patientId: '', 
+                    group: currentUser.hospital === "ทั้งหมด" ? HOSPITALS[0] : currentUser.hospital, 
+                    round: TRACKING_ROUNDS[0].name, 
+                    attended: true, 
+                    drugDetected: false, 
+                    checkDate: '2026-07-08', 
+                    note: '' 
+                });
+            };
+
+            const handleUpdateFollowup = async (id, field, value) => {
+                const record = followups.find(f => f.id === id);
+                if (!record) return;
+                
+                if (currentUser.role !== 'superadmin' && record.group !== currentUser.hospital) {
+                    triggerToast("ท่านไม่มีสิทธิ์แก้ไขประวัติของตำบลอื่นได้", "error");
+                    return;
+                }
+
+                let updatedRecord = { ...record, [field]: value };
+                
+                if (field === 'attended' && value === false) {
+                    updatedRecord.drugDetected = null;
+                } else if (field === 'attended' && value === true && updatedRecord.drugDetected === null) {
+                    updatedRecord.drugDetected = false;
+                }
+                
+                if (field === 'round') {
+                    const matchPat = patients.find(p => p.name === record.patientName);
+                    if (matchPat) {
+                        updatedRecord.checkDate = calculateTargetDate(matchPat.registerDate, value);
+                    }
+                }
+
+                setFollowups(prev => prev.map(f => f.id === id ? updatedRecord : f));
+
+                if (firebaseReady) {
+                    const fb = window.firebase;
+                    try {
+                        await fb.setDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'followups', id), updatedRecord);
+                    } catch (err) {
+                        console.warn(err);
+                    }
+                }
+            };
+
+            const triggerDeleteRequest = (id, type = 'followup') => {
+                const record = type === 'followup' ? followups.find(f => f.id === id) : patients.find(p => p.id === id);
+                
+                const isSuperAdmin = currentUser.role === 'superadmin';
+                const isOwnStaff = record && record.group === currentUser.hospital;
+
+                if (!isSuperAdmin && !isOwnStaff) {
+                    triggerToast("ท่านไม่มีสิทธิ์ลบข้อมูลการดูแลของโรงพยาบาล/รพ.สต. อื่น", "error");
+                    return;
+                }
+                setDeleteModal({ show: true, targetId: id, targetType: type });
+            };
+
+            const confirmDelete = async () => {
+                if (deleteModal.targetId) {
+                    const targetId = deleteModal.targetId;
+                    const targetType = deleteModal.targetType;
+
+                    if (targetType === 'followup') {
+                        setFollowups(prev => prev.filter(f => f.id !== targetId));
+                        if (firebaseReady) {
+                            const fb = window.firebase;
+                            try {
+                                await fb.deleteDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'followups', targetId));
+                            } catch (err) {
+                                console.warn(err);
+                            }
+                        }
+                        triggerToast(`ลบประวัติการนัดหมายรหัส ${targetId} เรียบร้อย`, "info");
+                    } else if (targetType === 'patient') {
+                        setPatients(prev => prev.filter(p => p.id !== targetId));
+                        if (firebaseReady) {
+                            const fb = window.firebase;
+                            try {
+                                await fb.deleteDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'patients', targetId));
+                            } catch (err) {
+                                console.warn(err);
+                            }
+                        }
+                        triggerToast(`ถอนการขึ้นทะเบียนผู้บำบัดรหัส ${targetId} แล้ว`, "info");
+                    }
+                }
+                setDeleteModal({ show: false, targetId: null, targetType: 'followup' });
+            };
+
+            // Dynamic filter options
+            const getDashboardPatients = () => {
+                if (dashboardScope === "own" && currentUser.hospital !== "ทั้งหมด") {
+                    return patients.filter(p => p.group === currentUser.hospital);
+                }
+                return patients;
+            };
+
+            const getDashboardFollowups = () => {
+                if (dashboardScope === "own" && currentUser.hospital !== "ทั้งหมด") {
+                    return followups.filter(f => f.group === currentUser.hospital);
+                }
+                return followups;
+            };
+
+            const getVisiblePatients = () => {
+                if (currentUser.role === 'superadmin') return patients;
+                return patients.filter(p => p.group === currentUser.hospital);
+            };
+
+            const getVisibleFollowups = () => {
+                if (currentUser.role === 'superadmin') return followups;
+                return followups.filter(f => f.group === currentUser.hospital);
+            };
+
+            const downloadBackupJSON = () => {
+                try {
+                    const dataObj = {
+                        users,
+                        patients,
+                        followups,
+                        backupDate: new Date().toISOString()
+                    };
+                    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(dataObj, null, 2))}`;
+                    const downloadAnchor = document.createElement('a');
+                    downloadAnchor.setAttribute("href", jsonString);
+                    downloadAnchor.setAttribute("download", `SRITHEP_REHAB_BACKUP_${new Date().toISOString().split('T')[0]}.json`);
+                    document.body.appendChild(downloadAnchor);
+                    downloadAnchor.click();
+                    downloadAnchor.remove();
+                    triggerToast("ดาวน์โหลดไฟล์สำรอง .json เรียบร้อยแล้วค่ะ!");
+                } catch (err) {
+                    triggerToast("เกิดข้อขัดข้องในการทำสำรองข้อมูล", "error");
+                }
+            };
+
+            const triggerJSONImport = async (e) => {
+                const fileReader = new FileReader();
+                fileReader.onload = async (event) => {
+                    try {
+                        const parsedData = JSON.parse(event.target.result);
+                        if (parsedData.users && parsedData.patients && parsedData.followups) {
+                            if (firebaseReady) {
+                                const fb = window.firebase;
+                                for (let u of parsedData.users) {
+                                    await fb.setDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'users', u.id), u);
+                                }
+                                for (let p of parsedData.patients) {
+                                    await fb.setDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'patients', p.id), p);
+                                }
+                                for (let f of parsedData.followups) {
+                                    await fb.setDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'followups', f.id), f);
+                                }
+                            } else {
+                                setUsers(parsedData.users);
+                                setPatients(parsedData.patients);
+                                setFollowups(parsedData.followups);
+                            }
+                            triggerToast("อิมพอร์ตข้อมูลเข้าระบบเรียบร้อยแล้วค่ะ!");
+                        } else {
+                            triggerToast("โครงสร้างไฟล์ไม่สอดคล้องกับระบบ", "error");
+                        }
+                    } catch (error) {
+                        triggerToast("วิเคราะห์ประมวลผลไฟล์ล้มเหลว", "error");
+                    }
+                };
+                if (e.target.files[0]) {
+                    fileReader.readAsText(e.target.files[0]);
+                }
+            };
+
+            const exportToExcel = () => {
+                const targetData = getVisibleFollowups();
+                const tableData = targetData.map((f, i) => ({
+                    'ลำดับ': i + 1,
+                    'รหัสติดตาม': f.id,
+                    'ชื่อ-นามสกุลจริง': f.patientName,
+                    'สังกัดกลุ่ม/โรงพยาบาล': f.group,
+                    'รอบการติดตาม': f.round || '-',
+                    'วันที่ครบกำหนดนัดหมาย (พ.ศ.)': formatThaiDate(f.checkDate),
+                    'การแสดงตัวมานัด': f.attended ? 'มาตามนัด' : 'ไม่มาตามนัด',
+                    'ผลการตรวจหาสารเสพติด': f.attended ? (f.drugDetected ? 'พบสารเสพติด' : 'ไม่พบสารเสพติด') : 'ยกเว้นการตรวจ',
+                    'บันทึกพฤติกรรม/ข้อเสนอแนะ': f.note || '-'
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(tableData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "รายงานบันทึกประวัติการบำบัด");
+                XLSX.writeFile(wb, `รายงานบันทึกการบำบัด_${currentUser?.hospital === "ทั้งหมด" ? 'ภาพรวมทั้งหมด' : currentUser?.hospital}.xlsx`);
+                triggerToast("ส่งออกไฟล์เอกสาร Excel สำเร็จเรียบร้อย!");
+            };
+
+            return (
+                <div className="flex-grow flex flex-col">
+                    {/* Toast Alert Component */}
+                    {toast.show && (
+                        <div className="fixed top-5 right-5 z-50 flex items-center p-4 text-white rounded-2xl shadow-2xl transition-all duration-300 animate-bounce" style={{
+                            backgroundColor: toast.type === 'success' ? '#16a34a' : toast.type === 'error' ? '#dc2626' : '#2563eb'
+                        }}>
+                            <div className="mr-3 text-lg">
+                                {toast.type === 'success' ? <i className="fa-solid fa-circle-check"></i> : toast.type === 'error' ? <i className="fa-solid fa-triangle-exclamation"></i> : <i className="fa-solid fa-circle-info"></i>}
+                            </div>
+                            <div className="text-xs font-bold">{toast.message}</div>
+                        </div>
+                    )}
+
+                    {/* Delete Confirm Modal */}
+                    {deleteModal.show && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                            <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-fadeIn">
+                                <div className="text-center">
+                                    <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-100 text-red-600 mb-3">
+                                        <i className="fa-solid fa-trash-can text-lg"></i>
+                                    </div>
+                                    <h3 className="text-lg font-black text-slate-900">ยืนยันลบข้อมูล</h3>
+                                    <p className="text-xs text-slate-500 mt-1">ท่านแน่ใจหรือไม่ที่จะลบรายชื่อหรือประวัติรหัส {deleteModal.targetId}? ข้อมูลที่ทำการบันทึกไว้จะสลายหายไปจากระบบแบบเรียลไทม์</p>
+                                </div>
+                                <div className="flex space-x-2 pt-1">
+                                    <button 
+                                        onClick={() => setDeleteModal({ show: false, targetId: null, targetType: 'followup' })}
+                                        className="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
+                                    >
+                                        ยกเลิก
+                                    </button>
+                                    <button 
+                                        onClick={confirmDelete}
+                                        className="w-1/2 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition shadow-lg"
+                                    >
+                                        ยืนยันการลบ
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Navigation Header bar */}
+                    <nav className="bg-brand-900 text-white shadow-xl border-b border-brand-800">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex flex-col md:flex-row justify-between items-center py-4 md:h-24 gap-4">
+                                <div className="flex items-center space-x-4">
+                                    <div className="bg-white p-1 rounded-2xl shadow flex items-center justify-center">
+                                        <IntegrationLogo />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-base md:text-xl font-extrabold tracking-tight">รวมพลัง รักศรัทธา</h1>
+                                        <p className="text-xxs md:text-xs text-brand-200 font-medium">ระบบบริหารและติดตามฟื้นฟูบำบัดยาเสพติดแบบบูรณาการ อำเภอศรีเทพ</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                    {currentUser ? (
+                                        <div className="flex items-center space-x-3 bg-brand-800/60 p-2.5 rounded-2xl border border-brand-700">
+                                            <div className="text-right">
+                                                <span className="text-xs font-bold text-white block">{currentUser.name}</span>
+                                                <span className="text-[10px] text-brand-200 font-medium">สังกัด: {currentUser.hospital}</span>
+                                            </div>
+                                            <button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition shadow">
+                                                <i className="fa-solid fa-right-from-bracket"></i> ออกจากระบบ
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <span className="text-xxs text-brand-200 bg-brand-950 px-3 py-1.5 rounded-xl"><i className="fa-solid fa-lock mr-1.5"></i>กรุณาลงชื่อเข้าใช้งานระดับสิทธิ์เจ้าหน้าที่</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+
+                    {!currentUser ? (
+                        <LoginPanel 
+                            username={username} 
+                            password={password} 
+                            setUsername={setUsername} 
+                            setPassword={setPassword} 
+                            handleLogin={handleLogin} 
+                            loginError={loginError} 
+                        />
+                    ) : (
+                        <div className="flex-grow flex flex-col max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+                            
+                            {/* Cloud Status Banner */}
+                            <div className="bg-white border border-slate-200 rounded-3xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-slate-800 shadow-sm">
+                                <div className="flex items-center space-x-3">
+                                    <div className={`p-2.5 rounded-2xl text-white ${firebaseReady ? 'bg-emerald-600' : 'bg-brand-600 animate-pulse'}`}>
+                                        <i className={`fa-solid ${firebaseReady ? 'fa-cloud' : 'fa-database'}`}></i>
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center space-x-2">
+                                            <h4 className="text-xs font-extrabold text-slate-800">
+                                                สถานะบันทึก: {firebaseReady ? 'ฐานข้อมูลบูรณาการเรียลไทม์บนระบบคลาวด์' : 'สำรองฐานข้อมูลภายในเว็บเบราว์เซอร์อย่างปลอดภัย'}
+                                            </h4>
+                                            <span className={`h-2.5 w-2.5 rounded-full ${firebaseReady ? 'bg-emerald-500 animate-pulse' : 'bg-brand-500 animate-pulse'}`}></span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">
+                                            {firebaseReady 
+                                                ? 'เชื่อมต่อ Firestore สมบูรณ์แบบ ข้อมูลซิงค์อัตโนมัติแบบเรียลไทม์ระหว่างทุกหน่วยบริการ' 
+                                                : 'จัดเก็บใน Local Storage ทันที ข้อมูลอยู่ครบถ้วนแม้ทำการรีเฟรชหน้าจอหรือกดออกจากระบบ'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={downloadBackupJSON} 
+                                        className="bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xxs px-4 py-2.5 rounded-xl transition flex items-center space-x-1.5"
+                                    >
+                                        <i className="fa-solid fa-download"></i>
+                                        <span>ส่งออกสำรอง .json</span>
+                                    </button>
+                                    <label className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xxs px-4 py-2.5 rounded-xl transition flex items-center space-x-1.5 cursor-pointer">
+                                        <i className="fa-solid fa-upload"></i>
+                                        <span>นำเข้าฐานข้อมูล</span>
+                                        <input type="file" accept=".json" onChange={triggerJSONImport} className="hidden" />
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* Tabs Navigation */}
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
+                                <button onClick={() => setActiveTab("dashboard")} className={`py-3 px-1 rounded-xl font-extrabold text-xs flex items-center justify-center space-x-1.5 transition-all ${activeTab === 'dashboard' ? 'bg-white text-brand-700 shadow-md border-b-2 border-brand-600' : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'}`}>
+                                    <i className="fa-solid fa-chart-pie"></i>
+                                    <span>แดชบอร์ดสถิติ</span>
+                                </button>
+                                <button onClick={() => setActiveTab("register")} className={`py-3 px-1 rounded-xl font-extrabold text-xs flex items-center justify-center space-x-1.5 transition-all ${activeTab === 'register' ? 'bg-white text-brand-700 shadow-md border-b-2 border-brand-600' : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'}`}>
+                                    <i className="fa-solid fa-user-plus"></i>
+                                    <span>ลงทะเบียนผู้บำบัด</span>
+                                </button>
+                                <button onClick={() => setActiveTab("tracking")} className={`py-3 px-1 rounded-xl font-extrabold text-xs flex items-center justify-center space-x-1.5 transition-all ${activeTab === 'tracking' ? 'bg-white text-brand-700 shadow-md border-b-2 border-brand-600' : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'}`}>
+                                    <i className="fa-solid fa-calendar-check"></i>
+                                    <span>บันทึกติดตาม 7 รอบ</span>
+                                </button>
+                                <button onClick={() => setActiveTab("canvasheet")} className={`py-3 px-1 rounded-xl font-extrabold text-xs flex items-center justify-center space-x-1.5 transition-all ${activeTab === 'canvasheet' ? 'bg-white text-brand-700 shadow-md border-b-2 border-brand-600' : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'}`}>
+                                    <i className="fa-solid fa-table"></i>
+                                    <span>แผ่นข้อมูล Canva Sheet</span>
+                                </button>
+                                {currentUser.role === 'superadmin' ? (
+                                    <button onClick={() => setActiveTab("users_mgmt")} className={`py-3 px-1 rounded-xl font-extrabold text-xs flex items-center justify-center space-x-1.5 transition-all text-indigo-700 ${activeTab === 'users_mgmt' ? 'bg-white text-indigo-700 shadow-md border-b-2 border-indigo-600' : 'text-indigo-600 hover:text-indigo-900 hover:bg-white/40'}`}>
+                                        <i className="fa-solid fa-users-gear"></i>
+                                        <span>จัดการสิทธิ์แอดมิน</span>
+                                    </button>
+                                ) : (
+                                    <div className="py-3 px-1 text-center text-slate-400 font-extrabold text-[10px] flex items-center justify-center bg-slate-200/50 rounded-xl cursor-not-allowed">
+                                        <i className="fa-solid fa-lock mr-1"></i>จำกัดสิทธิ์แอดมินหลัก
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Views switching */}
+                            <main className="flex-grow">
+                                {activeTab === "dashboard" && (
+                                    <DashboardView 
+                                        patients={getDashboardPatients()} 
+                                        followups={getDashboardFollowups()} 
+                                        currentUser={currentUser}
+                                        dashboardScope={dashboardScope}
+                                        setDashboardScope={setDashboardScope}
+                                    />
+                                )}
+                                {activeTab === "register" && (
+                                    <RegisterView 
+                                        patients={getVisiblePatients()} 
+                                        newPatient={newPatient} 
+                                        setNewPatient={setNewPatient} 
+                                        handleAddPatient={handleAddPatient}
+                                        currentUser={currentUser}
+                                        triggerDeleteRequest={triggerDeleteRequest}
+                                    />
+                                )}
+                                {activeTab === "tracking" && (
+                                    <TrackingView 
+                                        patients={getVisiblePatients()} 
+                                        followups={getVisibleFollowups()} 
+                                        newFollowup={newFollowup} 
+                                        setNewFollowup={setNewFollowup} 
+                                        handleAddFollowup={handleAddFollowup} 
+                                        currentUser={currentUser}
+                                    />
+                                )}
+                                {activeTab === "canvasheet" && (
+                                    <CanvaSheetView 
+                                        followups={getVisibleFollowups()} 
+                                        handleUpdateFollowup={handleUpdateFollowup} 
+                                        triggerDeleteRequest={triggerDeleteRequest} 
+                                        exportToExcel={exportToExcel}
+                                        currentUser={currentUser}
+                                    />
+                                )}
+                                {activeTab === "users_mgmt" && currentUser.role === "superadmin" && (
+                                    <UsersManagementView 
+                                        users={users}
+                                        newUser={newUser}
+                                        setNewUser={setNewUser}
+                                        handleAddUser={handleAddUser}
+                                        handleDeleteUser={handleDeleteUser}
+                                    />
+                                )}
+                            </main>
+                        </div>
+                    )}
+
+                    <footer className="bg-slate-900 text-slate-400 text-xxs py-8 mt-auto border-t border-slate-800 text-center">
+                        <div className="max-w-7xl mx-auto px-4 space-y-1">
+                            <p className="font-bold text-slate-300 text-xs">ระบบติดตามการบำบัดยาเสพติดแบบบูรณาการ อำเภอศรีเทพ จังหวัดเพชรบูรณ์</p>
+                            <p>นับรอบการติดตามนัดหมาย 7 รอบโดยตรงอ้างอิงจากวันที่สมัครเริ่มต้นบำบัดเพื่อประสิทธิภาพการวิเคราะห์</p>
+                            <p className="text-slate-500 pt-2">© 2026 "รวมพลัง รักศรัทธา แก้ปัญหายาเสพติดแบบบูรณาการ" สถาบันสุขภาพและสภาการปกครองศรีเทพ</p>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        function LoginPanel({ username, password, setUsername, setPassword, handleLogin, loginError }) {
+            return (
+                <div className="flex-grow flex items-center justify-center p-4 py-16 bg-gradient-to-br from-slate-50 via-emerald-50/20 to-slate-100 font-sans">
+                    <div className="bg-white rounded-[32px] shadow-2xl border border-slate-200/50 p-8 max-w-md w-full space-y-6 animate-fadeIn">
+                        <div className="text-center space-y-2">
+                            <div className="inline-flex p-3 rounded-2xl bg-emerald-50 text-emerald-600 mb-1">
+                                <IntegrationLogo />
+                            </div>
+                            <h2 className="text-xl font-black text-slate-800">ระบบติดตามการบำบัดแบบบูรณาการ</h2>
+                            <p className="text-xs text-slate-400">เข้าสู่ระบบสิทธิ์เจ้าหน้าที่เพื่อทำรายการประเมินติดตามรายรอบ</p>
+                        </div>
+
+                        {loginError && (
+                            <div className="bg-rose-50 border-l-4 border-rose-500 text-rose-700 p-3.5 rounded-xl text-xxs flex items-center space-x-2 animate-bounce">
+                                <i className="fa-solid fa-triangle-exclamation"></i>
+                                <span>{loginError}</span>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <div>
+                                <label className="block text-xxs font-extrabold text-slate-600 uppercase mb-1">ชื่อบัญชีผู้ใช้ (Username)</label>
+                                <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                        <i className="fa-solid fa-user text-xs"></i>
+                                    </span>
+                                    <input 
+                                        type="text" 
+                                        placeholder="ป้อนบัญชีผู้ใช้" 
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-xs transition font-semibold" 
+                                        required 
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xxs font-extrabold text-slate-600 uppercase mb-1">รหัสผ่าน (Password)</label>
+                                <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                        <i className="fa-solid fa-key text-xs"></i>
+                                    </span>
+                                    <input 
+                                        type="password" 
+                                        placeholder="ป้อนรหัสผ่าน" 
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-xs transition" 
+                                        required 
+                                    />
+                                </div>
+                            </div>
+
+                            <button type="submit" className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center space-x-1.5 hover:shadow-xl">
+                                <i className="fa-solid fa-right-to-bracket"></i>
+                                <span>ตรวจสอบข้อมูลสิทธิ์และเข้าระบบ</span>
+                            </button>
+                        </form>
+                        <div className="text-center text-[10px] text-slate-400 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                            บัญชีแอดมินทดสอบ: <strong>admin</strong> | รหัสผ่าน: <strong>1234</strong>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function DashboardView({ patients, followups, currentUser, dashboardScope, setDashboardScope }) {
+            const chartRef = useRef(null);
+            const attendanceChartRef = useRef(null);
+            const myChart = useRef(null);
+            const myAttendanceChart = useRef(null);
+
+            const totalPatients = patients.length;
+            const totalFollowups = followups.length;
+            const attendedCount = followups.filter(f => f.attended).length;
+            const missedCount = totalFollowups - attendedCount;
+            const positiveDrugsCount = followups.filter(f => f.attended && f.drugDetected).length;
+            const negativeDrugsCount = followups.filter(f => f.attended && !f.drugDetected).length;
+
+            const attendanceRateOverall = totalFollowups > 0 ? ((attendedCount / totalFollowups) * 100).toFixed(1) : "0.0";
+            const cleanRateOverall = attendedCount > 0 ? ((negativeDrugsCount / attendedCount) * 100).toFixed(1) : "0.0";
+
+            const statsByGroup = HOSPITALS.map(groupName => {
+                const groupFollowups = followups.filter(f => f.group === groupName);
+                const gTotal = groupFollowups.length;
+                const gAttended = groupFollowups.filter(f => f.attended).length;
+                const gMissed = gTotal - gAttended;
+                const gPositive = groupFollowups.filter(f => f.attended && f.drugDetected).length;
+                const gClean = gAttended - gPositive;
+
+                const attendanceRate = gTotal > 0 ? (gAttended / gTotal) * 100 : 0;
+                const cleanRate = gAttended > 0 ? (gClean / gAttended) * 100 : 0;
+
+                return {
+                    name: groupName,
+                    total: gTotal,
+                    attended: gAttended,
+                    missed: gMissed,
+                    positive: gPositive,
+                    clean: gClean,
+                    attendanceRate: attendanceRate,
+                    cleanRate: cleanRate
+                };
+            });
+
+            const statsByRound = TRACKING_ROUNDS.map(roundObj => {
+                const roundFollowups = followups.filter(f => f.round === roundObj.name);
+                const rTotal = roundFollowups.length;
+                const rAttended = roundFollowups.filter(f => f.attended).length;
+                const rClean = roundFollowups.filter(f => f.attended && !f.drugDetected).length;
+
+                const attRate = rTotal > 0 ? (rAttended / rTotal) * 100 : 0;
+                const cleanRate = rAttended > 0 ? (rClean / rAttended) * 100 : 0;
+
+                return {
+                    name: roundObj.name,
+                    total: rTotal,
+                    attended: rAttended,
+                    clean: rClean,
+                    attendanceRate: attRate,
+                    cleanRate: cleanRate
+                };
+            });
+
+            useEffect(() => {
+                if (!chartRef.current || !attendanceChartRef.current) return;
+                
+                if (myChart.current) myChart.current.destroy();
+                if (myAttendanceChart.current) myAttendanceChart.current.destroy();
+
+                const ctx1 = chartRef.current.getContext('2d');
+                const ctx2 = attendanceChartRef.current.getContext('2d');
+
+                const colorsAttendance = ['#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8', '#1e3a8a', '#2563eb', '#3b82f6'];
+                const colorsClean = ['#34d399', '#10b981', '#059669', '#047857', '#064e3b', '#059669', '#10b981'];
+
+                myAttendanceChart.current = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: statsByRound.map(r => r.name),
+                        datasets: [{
+                            label: 'อัตราการมาตามนัดหมาย (%)',
+                            data: statsByRound.map(r => r.attendanceRate.toFixed(1)),
+                            backgroundColor: colorsAttendance,
+                            borderRadius: 8,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, max: 100, ticks: { font: { family: 'Sarabun', size: 10 } } },
+                            x: { ticks: { font: { family: 'Sarabun', size: 10, weight: 'bold' } } }
+                        }
+                    }
+                });
+
+                myChart.current = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: statsByRound.map(r => r.name),
+                        datasets: [{
+                            label: 'อัตราผลตรวจไม่พบสารเสพติด (%)',
+                            data: statsByRound.map(r => r.cleanRate.toFixed(1)),
+                            backgroundColor: colorsClean,
+                            borderRadius: 8,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, max: 100, ticks: { font: { family: 'Sarabun', size: 10 } } },
+                            x: { ticks: { font: { family: 'Sarabun', size: 10, weight: 'bold' } } }
+                        }
+                    }
+                });
+
+            }, [patients, followups, statsByRound]);
+
+            return (
+                <div className="space-y-6 animate-fadeIn">
+                    
+                    {currentUser.hospital !== "ทั้งหมด" && (
+                        <div className="bg-white p-4 rounded-3xl border border-slate-150 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-sm">
+                            <div>
+                                <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm">ขอบเขตข้อมูลภาพแสดงผล</h3>
+                                <p className="text-[10px] text-slate-400">ปรับเปรียบเทียบสถิติรวมของทุกกลุ่มหรือตามรพ.สต.สังกัดตนเอง</p>
+                            </div>
+                            <div className="flex bg-slate-100 p-1 rounded-xl">
+                                <button 
+                                    onClick={() => setDashboardScope("own")} 
+                                    className={`px-4 py-2 rounded-lg font-bold text-[10px] transition ${dashboardScope === "own" ? 'bg-brand-600 text-white shadow' : 'text-slate-600'}`}
+                                >
+                                    เฉพาะหน่วยงาน {currentUser.hospital.replace("โรงพยาบาลส่งเสริมสุขภาพตำบล", "รพ.สต.")}
+                                </button>
+                                <button 
+                                    onClick={() => setDashboardScope("all")} 
+                                    className={`px-4 py-2 rounded-lg font-bold text-[10px] transition ${dashboardScope === "all" ? 'bg-brand-600 text-white shadow' : 'text-slate-600'}`}
+                                >
+                                    ภาพรวมบูรณาการ (ทุกกลุ่ม)
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Stats Summary Panel */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="bg-gradient-to-tr from-brand-700 to-emerald-800 text-white rounded-2xl p-5 shadow flex flex-col justify-between">
+                            <div className="text-[10px] font-bold opacity-80 uppercase">ผู้เข้ารับการบำบัดรักษา</div>
+                            <div className="text-2xl md:text-3xl font-extrabold mt-1.5">{totalPatients} <span className="text-xs font-normal">ราย</span></div>
+                            <div className="text-[10px] mt-4 opacity-75">ขอบเขต: {dashboardScope === 'all' || currentUser.hospital === "ทั้งหมด" ? 'ภาพรวมบูรณาการ' : currentUser.hospital.replace("โรงพยาบาลส่งเสริมสุขภาพตำบล", "รพ.สต.")}</div>
+                        </div>
+
+                        <div className="bg-gradient-to-tr from-blue-600 to-cyan-700 text-white rounded-2xl p-5 shadow flex flex-col justify-between">
+                            <div className="text-[10px] font-bold opacity-80 uppercase">ประวัติการตรวจติดตามรวม</div>
+                            <div className="text-2xl md:text-3xl font-extrabold mt-1.5">{totalFollowups} <span className="text-xs font-normal">ครั้ง</span></div>
+                            <div className="text-[10px] mt-4 opacity-75">ประมวลผลจาก 7 รอบความถี่</div>
+                        </div>
+
+                        <div className="bg-gradient-to-tr from-amber-500 to-orange-600 text-white rounded-2xl p-5 shadow flex flex-col justify-between">
+                            <div className="text-[10px] font-bold opacity-80 uppercase">ร้อยละการมาตรงนัด</div>
+                            <div className="text-2xl md:text-3xl font-extrabold mt-1.5">{attendanceRateOverall} <span className="text-xs font-normal">%</span></div>
+                            <div className="text-[10px] mt-4 opacity-75">มาแสดงตัว {attendedCount} ครั้ง</div>
+                        </div>
+
+                        <div className="bg-gradient-to-tr from-teal-600 to-emerald-600 text-white rounded-2xl p-5 shadow flex flex-col justify-between">
+                            <div className="text-[10px] font-bold opacity-80 uppercase">อัตราการปลอดสารเสพติด</div>
+                            <div className="text-2xl md:text-3xl font-extrabold mt-1.5">{cleanRateOverall} <span className="text-xs font-normal">%</span></div>
+                            <div className="text-[10px] mt-4 opacity-75">ผลลบ {negativeDrugsCount} ราย</div>
+                        </div>
+                    </div>
+
+                    {/* Chart Container */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-2xl shadow border border-slate-100 p-5 space-y-3">
+                            <h4 className="font-extrabold text-slate-800 text-xs flex items-center space-x-1.5">
+                                <span className="w-2.5 h-2.5 bg-blue-600 rounded-full inline-block"></span>
+                                <span>สถิติความสม่ำเสมอเข้าพบนัดหมายในแต่ละด้าน (7 รอบติดตาม)</span>
+                            </h4>
+                            <div className="h-60 relative">
+                                <canvas ref={attendanceChartRef}></canvas>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-2xl shadow border border-slate-100 p-5 space-y-3">
+                            <h4 className="font-extrabold text-slate-800 text-xs flex items-center space-x-1.5">
+                                <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full inline-block"></span>
+                                <span>สถิติอัตราการตรวจไม่พบสารเสพติด (7 รอบติดตาม)</span>
+                            </h4>
+                            <div className="h-60 relative">
+                                <canvas ref={chartRef}></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Clinic Summary table */}
+                    <div className="bg-white rounded-2xl shadow border border-slate-150 p-5">
+                        <div className="border-b border-slate-100 pb-3 mb-4">
+                            <h3 className="font-extrabold text-slate-800 text-sm flex items-center space-x-2">
+                                <i className="fa-solid fa-hospital text-brand-600"></i>
+                                <span>ค่าเฉลี่ยสถิติการมานัดและการปลอดสารเสพติดรายหน่วยงาน</span>
+                            </h3>
+                            <p className="text-[10px] text-slate-400">ตารางแสดงความก้าวหน้ารายตำบลเพื่อการประเมินภาพรวมที่ครบถ้วน</p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse min-w-[700px]">
+                                <thead>
+                                    <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-extrabold text-slate-500">
+                                        <th className="p-3">โรงพยาบาล/รพ.สต. ในสังกัด</th>
+                                        <th className="p-3 text-center">นัดหมายทั้งหมด (ครั้ง)</th>
+                                        <th className="p-3 text-center text-blue-700">มาตามนัด (ครั้ง)</th>
+                                        <th className="p-3 text-center text-amber-600">ขาดการนัด (ครั้ง)</th>
+                                        <th className="p-3 text-center">อัตราเฉลี่ยมาตรงนัด</th>
+                                        <th className="p-3 text-center text-emerald-700">ตรวจไม่พบสาร (ครั้ง)</th>
+                                        <th className="p-3 text-center text-rose-600">ตรวจพบสาร (ครั้ง)</th>
+                                        <th className="p-3 text-center">อัตราเฉลี่ยปลอดสาร</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-xs divide-y divide-slate-100 text-slate-700">
+                                    {statsByGroup
+                                        .filter(group => {
+                                            if (dashboardScope === "own" && currentUser.hospital !== "ทั้งหมด") {
+                                                return group.name === currentUser.hospital;
+                                            }
+                                            return true;
+                                        })
+                                        .map((stat, idx) => (
+                                            <tr key={idx} className="hover:bg-slate-50 transition-all">
+                                                <td className="p-3 font-semibold text-slate-800">{stat.name}</td>
+                                                <td className="p-3 text-center font-bold">{stat.total}</td>
+                                                <td className="p-3 text-center text-blue-600 font-bold">{stat.attended}</td>
+                                                <td className="p-3 text-center text-amber-500 font-medium">{stat.missed}</td>
+                                                <td className="p-3 text-center">
+                                                    <span className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] ${stat.attendanceRate >= 80 ? 'bg-green-100 text-green-800' : stat.attendanceRate >= 50 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
+                                                        {stat.attendanceRate.toFixed(1)}%
+                                                    </span>
+                                                </td>
+                                                <td className="p-3 text-center text-emerald-600 font-bold">{stat.clean}</td>
+                                                <td className="p-3 text-center text-rose-500 font-medium">{stat.positive}</td>
+                                                <td className="p-3 text-center">
+                                                    <span className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] ${stat.cleanRate >= 80 ? 'bg-green-100 text-green-800' : stat.cleanRate >= 50 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
+                                                        {stat.cleanRate.toFixed(1)}%
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                    ))}
+                                    {(dashboardScope === "all" || currentUser.hospital === "ทั้งหมด") && (
+                                        <tr className="bg-brand-50 font-extrabold text-slate-900 border-t-2 border-brand-200">
+                                            <td className="p-3 text-brand-800 font-black text-xs">เฉลี่ยรวมสรุปภาพรวมทั้งหมด</td>
+                                            <td className="p-3 text-center font-bold text-xs">{totalFollowups}</td>
+                                            <td className="p-3 text-center text-blue-700">{attendedCount}</td>
+                                            <td className="p-3 text-center text-amber-600">{missedCount}</td>
+                                            <td className="p-3 text-center text-brand-900 text-xs">{attendanceRateOverall}%</td>
+                                            <td className="p-3 text-center text-emerald-700">{negativeDrugsCount}</td>
+                                            <td className="p-3 text-center text-rose-600">{positiveDrugsCount}</td>
+                                            <td className="p-3 text-center text-brand-900 text-xs">{cleanRateOverall}%</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function RegisterView({ patients, newPatient, setNewPatient, handleAddPatient, currentUser, triggerDeleteRequest }) {
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
+                    <div className="bg-white rounded-3xl shadow border border-slate-100 p-6 space-y-4 lg:col-span-1 h-fit">
+                        <div className="border-b border-slate-100 pb-3">
+                            <h3 className="font-extrabold text-slate-800 text-xs md:text-sm flex items-center space-x-1.5">
+                                <i className="fa-solid fa-user-plus text-brand-600"></i>
+                                <span>ขึ้นทะเบียนผู้บำบัดรายใหม่</span>
+                            </h3>
+                            <p className="text-[10px] text-slate-400 mt-0.5">กรอกประวัติเบื้องต้นเพื่อใช้เป็นฐานข้อมูลหลักในการคำนวณ 7 รอบปฏิทิน</p>
+                        </div>
+
+                        <form onSubmit={handleAddPatient} className="space-y-4 text-xs">
+                            <div>
+                                <label className="block text-xxs font-extrabold text-slate-700 mb-1">ชื่อ - นามสกุลจริง (คำนำหน้า) *</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="ระบุคำนำหน้าพร้อมชื่อ นามสกุล" 
+                                    value={newPatient.name}
+                                    onChange={(e) => setNewPatient({...newPatient, name: e.target.value})}
+                                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition font-semibold"
+                                    required
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block text-xxs font-extrabold text-slate-700 mb-1">อายุ (ปี)</label>
+                                    <input 
+                                        type="number" 
+                                        placeholder="อายุ" 
+                                        value={newPatient.age}
+                                        onChange={(e) => setNewPatient({...newPatient, age: e.target.value})}
+                                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xxs font-extrabold text-slate-700 mb-1">เบอร์ติดต่อ</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="เบอร์โทร" 
+                                        value={newPatient.phone}
+                                        onChange={(e) => setNewPatient({...newPatient, phone: e.target.value})}
+                                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 transition font-semibold"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xxs font-extrabold text-slate-700 mb-1">สังกัดหน่วยบริการและตำบลที่ดูแล *</label>
+                                {currentUser.hospital === "ทั้งหมด" ? (
+                                    <select 
+                                        value={newPatient.group}
+                                        onChange={(e) => setNewPatient({...newPatient, group: e.target.value})}
+                                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-bold outline-none transition"
+                                        required
+                                    >
+                                        {HOSPITALS.map((h, i) => <option key={i} value={h}>{h}</option>)}
+                                    </select>
+                                ) : (
+                                    <input 
+                                        type="text" 
+                                        value={currentUser.hospital} 
+                                        disabled 
+                                        className="w-full px-3.5 py-2.5 border border-slate-200 bg-slate-100 rounded-xl text-xs font-bold text-slate-500" 
+                                    />
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-xxs font-extrabold text-slate-700 mb-1">วันที่เริ่มต้นรับการบำบัด (ค.ศ.) *</label>
+                                <input 
+                                    type="date" 
+                                    value={newPatient.registerDate}
+                                    onChange={(e) => setNewPatient({...newPatient, registerDate: e.target.value})}
+                                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-500 font-bold"
+                                    required
+                                />
+                                <span className="text-[10px] text-slate-500 block mt-1.5 font-bold text-right">
+                                    พ.ศ. เริ่มต้น: {formatThaiDate(newPatient.registerDate)}
+                                </span>
+                            </div>
+
+                            <button type="submit" className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-extrabold rounded-xl text-xs transition shadow-md flex items-center justify-center space-x-1.5">
+                                <i className="fa-solid fa-cloud-arrow-up"></i>
+                                <span>เพิ่มข้อมูลคนไข้ใหม่</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <div className="bg-white rounded-3xl shadow border border-slate-100 p-6 space-y-4 lg:col-span-2">
+                        <div>
+                            <h3 className="font-extrabold text-slate-800 text-xs md:text-sm">รายชื่อประวัติผู้บำบัดรักษาในระบบ ({patients.length} คน)</h3>
+                            <p className="text-[10px] text-slate-400">ข้อมูลจะจัดเก็บในระบบและเชื่อมโยงกับแผ่นข้อมูล Canva Sheet อัตโนมัติ</p>
+                        </div>
+
+                        <div className="overflow-x-auto border border-slate-150 rounded-2xl">
+                            <table className="w-full text-left border-collapse text-xxs md:text-xs">
+                                <thead className="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-100">
+                                    <tr>
+                                        <th className="p-3">ID</th>
+                                        <th className="p-3">ชื่อ - นามสกุลผู้บำบัด</th>
+                                        <th className="p-3 text-center">อายุ</th>
+                                        <th className="p-3">หน่วยงานผู้รับผิดชอบดูแล</th>
+                                        <th className="p-3 text-center">เบอร์ติดต่อ</th>
+                                        <th className="p-3 text-right">วันขึ้นทะเบียน (พ.ศ.)</th>
+                                        <th className="p-3 text-center">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                                    {patients.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="7" className="p-6 text-center text-slate-400 font-bold bg-white">ไม่มีรายชื่อผู้ป่วยที่ลงทะเบียนในสังกัด</td>
+                                        </tr>
+                                    ) : (
+                                        patients.map((p) => {
+                                            const canDeletePatient = currentUser.role === 'superadmin' || p.group === currentUser.hospital;
+
+                                            return (
+                                                <tr key={p.id} className="hover:bg-slate-50">
+                                                    <td className="p-3 font-semibold text-slate-400">{p.id}</td>
+                                                    <td className="p-3 font-bold text-slate-800">{p.name}</td>
+                                                    <td className="p-3 text-center">{p.age || '-'}</td>
+                                                    <td className="p-3 text-brand-700 font-bold text-xxs">{p.group.replace("โรงพยาบาลส่งเสริมสุขภาพตำบล", "รพ.สต.")}</td>
+                                                    <td className="p-3 text-center text-slate-500">{p.phone || '-'}</td>
+                                                    <td className="p-3 text-right text-slate-900 font-bold">{formatThaiDate(p.registerDate)}</td>
+                                                    <td className="p-3 text-center">
+                                                        {canDeletePatient ? (
+                                                            <button 
+                                                                onClick={() => triggerDeleteRequest(p.id, 'patient')}
+                                                                className="text-rose-500 hover:text-rose-700 p-2 bg-rose-50 hover:bg-rose-100 rounded-xl transition"
+                                                                title="ลบรายชื่อผู้บำบัด"
+                                                            >
+                                                                <i className="fa-solid fa-trash-can"></i>
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-[10px] text-slate-300 italic"><i className="fa-solid fa-lock"></i> ล็อก</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function TrackingView({ patients, followups, newFollowup, setNewFollowup, handleAddFollowup, currentUser }) {
+            
+            useEffect(() => {
+                if (newFollowup.patientId && newFollowup.patientId !== "custom") {
+                    const matchPat = patients.find(p => p.id === newFollowup.patientId);
+                    if (matchPat) {
+                        const calculatedDate = calculateTargetDate(matchPat.registerDate, newFollowup.round);
+                        setNewFollowup(prev => ({
+                            ...prev,
+                            group: matchPat.group,
+                            checkDate: calculatedDate
+                        }));
+                    }
+                } else if (newFollowup.patientId === "custom") {
+                    const calculatedDate = calculateTargetDate("2026-06-24", newFollowup.round);
+                    setNewFollowup(prev => ({
+                        ...prev,
+                        checkDate: calculatedDate
+                    }));
+                }
+            }, [newFollowup.patientId, newFollowup.round, patients]);
+
+            return (
+                <div className="max-w-xl mx-auto bg-white rounded-[32px] shadow-xl border border-slate-100 p-6 md:p-8 space-y-5 animate-fadeIn">
+                    <div className="border-b border-slate-100 pb-4 text-center">
+                        <div className="inline-flex p-3 rounded-2xl bg-brand-50 text-brand-600 mb-2">
+                            <i className="fa-solid fa-clipboard-check text-xl"></i>
+                        </div>
+                        <h3 className="font-extrabold text-slate-800 text-sm md:text-base">เพิ่มบันทึกความก้าวหน้าติดตาม 7 รอบ</h3>
+                        <p className="text-[10px] text-slate-400 mt-1">ระบบจะคำนวณวันกำหนดนัดรอบถัดไปอัตโนมัติจากวันที่คนไข้เริ่มขึ้นทะเบียน</p>
+                    </div>
+
+                    <form onSubmit={handleAddFollowup} className="space-y-4 text-xs">
+                        <div>
+                            <label className="block text-xxs font-extrabold text-slate-700 mb-1.5">ค้นหาและเลือกรายชื่อผู้บำบัด *</label>
+                            <select 
+                                value={newFollowup.patientId}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    const selectedPat = patients.find(p => p.id === val);
+                                    setNewFollowup({
+                                        ...newFollowup,
+                                        patientId: val,
+                                        group: selectedPat ? selectedPat.group : (currentUser.hospital === "ทั้งหมด" ? HOSPITALS[0] : currentUser.hospital)
+                                    });
+                                }}
+                                className="w-full px-3.5 py-3 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 font-bold bg-slate-50/50 outline-none"
+                                required
+                            >
+                                <option value="" disabled>-- กรุณาเลือกคนไข้ในทะเบียน --</option>
+                                <option value="custom">-- บันทึกรายการกรณีฉุกเฉินภายนอกทะเบียน --</option>
+                                {patients.map(p => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.name} [{p.group.replace("โรงพยาบาลส่งเสริมสุขภาพตำบล", "รพ.สต.")}] (เริ่มบำบัด: {formatThaiDate(p.registerDate)})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {newFollowup.patientId === "custom" && (
+                            <div className="p-4 bg-brand-50/50 rounded-2xl border border-brand-100 space-y-3">
+                                <div>
+                                    <label className="block text-xxs font-extrabold text-slate-700 mb-1">ระบุชื่อ นามสกุลคนไข้ด่วน *</label>
+                                    <input 
+                                        type="text" 
+                                        id="customNameInput"
+                                        placeholder="พิมพ์ชื่อจริง นามสกุลจริง"
+                                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xxs font-extrabold text-slate-700 mb-1">สังกัดกลุ่มบำบัด *</label>
+                                    {currentUser.hospital === "ทั้งหมด" ? (
+                                        <select 
+                                            value={newFollowup.group}
+                                            onChange={(e) => setNewFollowup({...newFollowup, group: e.target.value})}
+                                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs"
+                                        >
+                                            {HOSPITALS.map((h, i) => <option key={i} value={h}>{h}</option>)}
+                                        </select>
+                                    ) : (
+                                        <input 
+                                            type="text" 
+                                            value={currentUser.hospital} 
+                                            disabled 
+                                            className="w-full px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-xs font-bold text-slate-500" 
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-xxs font-extrabold text-slate-700 mb-1.5">เลือกรอบการบำบัดตรวจติดตาม (7 รอบ) *</label>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 font-sans">
+                                {TRACKING_ROUNDS.map((roundObj) => (
+                                    <button
+                                        type="button"
+                                        key={roundObj.id}
+                                        onClick={() => setNewFollowup({ ...newFollowup, round: roundObj.name })}
+                                        className={`py-2 px-1 text-center rounded-xl border text-[10px] font-extrabold transition-all ${
+                                            newFollowup.round === roundObj.name 
+                                                ? 'bg-brand-600 text-white border-brand-600 shadow' 
+                                                : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-200'
+                                        }`}
+                                    >
+                                        {roundObj.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xxs font-extrabold text-slate-700 mb-1">วันที่กำหนดนัดหมายของรอบปัจจุบัน (พ.ศ.) *</label>
+                            <div className="relative">
+                                <input 
+                                    type="date" 
+                                    value={newFollowup.checkDate}
+                                    onChange={(e) => setNewFollowup({...newFollowup, checkDate: e.target.value})}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold"
+                                    required
+                                />
+                                <span className="absolute right-2 top-1.5 text-[9px] text-brand-800 bg-brand-50 border border-brand-200 px-2 py-1 rounded font-extrabold">
+                                    พ.ศ. นัดหมาย: {formatThaiDate(newFollowup.checkDate)}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                            <label className="block text-xxs font-extrabold text-slate-700 mb-2 uppercase text-center">บันทึกการแสดงตัวมานัด</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button 
+                                    type="button"
+                                    onClick={() => setNewFollowup({ ...newFollowup, attended: true })}
+                                    className={`flex items-center justify-center py-2.5 px-3 rounded-xl border-2 transition font-extrabold ${newFollowup.attended ? 'border-blue-500 bg-blue-50/50 text-blue-800' : 'border-slate-200 bg-white text-slate-400'}`}
+                                >
+                                    <i className="fa-solid fa-square-check text-sm mr-1.5"></i>
+                                    <span>มาตามนัดหมาย</span>
+                                </button>
+
+                                <button 
+                                    type="button"
+                                    onClick={() => setNewFollowup({ ...newFollowup, attended: false })}
+                                    className={`flex items-center justify-center py-2.5 px-3 rounded-xl border-2 transition font-extrabold ${!newFollowup.attended ? 'border-amber-500 bg-amber-50/50 text-amber-800' : 'border-slate-200 bg-white text-slate-400'}`}
+                                >
+                                    <i className="fa-solid fa-square-minus text-sm mr-1.5"></i>
+                                    <span>ไม่มาตามนัดหมาย</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {newFollowup.attended ? (
+                            <div className="bg-rose-50/50 p-4 rounded-2xl border border-rose-100 space-y-2 animate-fadeIn">
+                                <label className="block text-xxs font-extrabold text-rose-800 flex items-center mb-1">
+                                    <i className="fa-solid fa-vial-virus text-sm mr-1.5"></i>
+                                    <span>ผลตรวจวิเคราะห์สารเสพติดในปัสสาวะ *</span>
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button 
+                                        type="button"
+                                        onClick={() => setNewFollowup({ ...newFollowup, drugDetected: true })}
+                                        className={`flex items-center justify-center py-2.5 px-3 rounded-xl border-2 transition font-extrabold ${newFollowup.drugDetected ? 'border-red-500 bg-red-100/60 text-red-800' : 'border-slate-200 bg-white text-slate-400'}`}
+                                    >
+                                        <i className="fa-solid fa-circle-exclamation mr-1.5"></i>
+                                        <span>พบสารเสพติด</span>
+                                    </button>
+
+                                    <button 
+                                        type="button"
+                                        onClick={() => setNewFollowup({ ...newFollowup, drugDetected: false })}
+                                        className={`flex items-center justify-center py-2.5 px-3 rounded-xl border-2 transition font-extrabold ${!newFollowup.drugDetected ? 'border-emerald-500 bg-emerald-100/60 text-emerald-800' : 'border-slate-200 bg-white text-slate-400'}`}
+                                    >
+                                        <i className="fa-solid fa-check-double mr-1.5"></i>
+                                        <span>ไม่พบสารเสพติด</span>
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-amber-50/40 p-3 text-center text-[10px] text-amber-800 font-bold rounded-xl animate-pulse">
+                                <i className="fa-solid fa-ban mr-1.5"></i>
+                                ระบบยกเว้นการตรวจหาสารเสพติดให้อัตโนมัติ เนื่องจากคนไข้ "ไม่มาตามนัดหมาย"
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-xxs font-extrabold text-slate-700 mb-1">บันทึกเพิ่มเติมจากเจ้าหน้าที่</label>
+                            <textarea 
+                                placeholder="พฤติกรรม อาชีพ สภาพแวดล้อม หรือข้อมูลสำคัญทางสังคมเพิ่มเติม..." 
+                                value={newFollowup.note}
+                                onChange={(e) => setNewFollowup({...newFollowup, note: e.target.value})}
+                                rows="3"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-1 focus:ring-brand-500"
+                            ></textarea>
+                        </div>
+
+                        <button type="submit" className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center space-x-1.5">
+                            <i className="fa-solid fa-floppy-disk text-sm"></i>
+                            <span>บันทึกความก้าวหน้าลง Canva Sheet</span>
+                        </button>
+                    </form>
+                </div>
+            );
+        }
+
+        function CanvaSheetView({ followups, handleUpdateFollowup, triggerDeleteRequest, exportToExcel, currentUser }) {
+            const [searchTerm, setSearchTerm] = useState("");
+            const [selectedGroupFilter, setSelectedGroupFilter] = useState("ทั้งหมด");
+            const [selectedRoundFilter, setSelectedRoundFilter] = useState("ทั้งหมด");
+
+            const filteredFollowups = followups.filter(f => {
+                const matchSearch = f.patientName.toLowerCase().includes(searchTerm.toLowerCase()) || (f.note && f.note.toLowerCase().includes(searchTerm.toLowerCase()));
+                const matchGroup = selectedGroupFilter === "ทั้งหมด" || f.group === selectedGroupFilter;
+                const matchRound = selectedRoundFilter === "ทั้งหมด" || f.round === selectedRoundFilter;
+                return matchSearch && matchGroup && matchRound;
+            });
+
+            return (
+                <div className="bg-white rounded-3xl shadow border border-slate-100 overflow-hidden flex flex-col animate-fadeIn">
+                    
+                    <div className="bg-slate-900 text-white p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                            <div className="flex items-center space-x-2">
+                                <span className="bg-emerald-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded uppercase animate-pulse">Auto-Saved to Cloud</span>
+                                <h3 className="font-extrabold text-xs md:text-sm flex items-center space-x-2">
+                                    <i className="fa-solid fa-table-list text-emerald-400"></i>
+                                    <span>กระดานแก้ไขสเปรดชีตออนไลน์ (Canva Sheet)</span>
+                                </h3>
+                            </div>
+                            <p className="text-[10px] text-slate-400">แก้ไขข้อมูลคนไข้ วันนัด รอบ บันทึกเพิ่มเติม หรือผลตรวจในคอลัมน์ได้โดยตรงทันทีเพื่อการทำงานบูรณาการอย่างสะดวก</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <button onClick={exportToExcel} className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-extrabold px-3.5 py-2 rounded-xl transition flex items-center space-x-1.5 shadow-md">
+                                <i className="fa-solid fa-file-excel"></i>
+                                <span>ดาวน์โหลดตารางเป็น Excel</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Filter controls */}
+                    <div className="p-4 bg-slate-50 border-b border-slate-200 grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div>
+                            <label className="block text-xxs font-extrabold text-slate-500 mb-1">ค้นหาคนไข้/บันทึก</label>
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                    <i className="fa-solid fa-magnifying-glass text-xs"></i>
+                                </span>
+                                <input 
+                                    type="text" 
+                                    placeholder="พิมพ์ค้นหาด่วน..." 
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-8 pr-4 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-brand-500 font-semibold"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xxs font-extrabold text-slate-500 mb-1">กรองตำบล/โรงพยาบาล</label>
+                            {currentUser.hospital === "ทั้งหมด" ? (
+                                <select 
+                                    value={selectedGroupFilter}
+                                    onChange={(e) => setSelectedGroupFilter(e.target.value)}
+                                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none font-bold text-slate-700"
+                                >
+                                    <option value="ทั้งหมด">-- แสดงทั้งหมด --</option>
+                                    {HOSPITALS.map((h, i) => <option key={i} value={h}>{h.replace("โรงพยาบาลส่งเสริมสุขภาพตำบล", "รพ.สต.")}</option>)}
+                                </select>
+                            ) : (
+                                <input 
+                                    type="text" 
+                                    value={currentUser.hospital} 
+                                    disabled 
+                                    className="w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-500" 
+                                />
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="block text-xxs font-extrabold text-slate-500 mb-1">กรองรอบนัดติดตาม</label>
+                            <select 
+                                value={selectedRoundFilter}
+                                onChange={(e) => setSelectedRoundFilter(e.target.value)}
+                                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none font-bold text-slate-700 font-sans"
+                            >
+                                <option value="ทั้งหมด">-- แสดงทุกรอบการบำบัด --</option>
+                                {TRACKING_ROUNDS.map((r, i) => <option key={i} value={r.name}>{r.name}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="flex items-end justify-end text-xxs text-slate-500 pb-1 font-semibold">
+                            <span className="font-extrabold text-slate-700">ผลกรองชุดนัดหมาย:</span>&nbsp;
+                            <span>{filteredFollowups.length} จาก {followups.length} รายการ</span>
+                        </div>
+                    </div>
+
+                    {/* Main Interactive Spreadsheet */}
+                    <div className="overflow-x-auto canva-sheet-scroll">
+                        <table className="w-full text-left border-collapse table-fixed min-w-[1100px]">
+                            <thead className="bg-slate-100 text-slate-600 font-extrabold text-xxs uppercase border-b border-slate-200">
+                                <tr>
+                                    <th className="p-3 w-16 text-center border-r border-slate-200">ID</th>
+                                    <th className="p-3 w-44 border-r border-slate-200">ชื่อ - นามสกุลจริงผู้รับการบำบัด</th>
+                                    <th className="p-3 w-52 border-r border-slate-200">หน่วยบริการสาธารณสุขผู้รับผิดชอบ</th>
+                                    <th className="p-3 w-28 border-r border-slate-200 text-center">รอบนัดหมาย</th>
+                                    <th className="p-3 w-36 border-r border-slate-200">วันที่นัดหมาย (พ.ศ.)</th>
+                                    <th className="p-3 w-36 border-r border-slate-200 text-center">มาตามนัด?</th>
+                                    <th className="p-3 w-36 border-r border-slate-200 text-center">ผลตรวจปัสสาวะ</th>
+                                    <th className="p-3 w-56 border-r border-slate-200">บันทึกเพิ่มเติมจากทีมรักษา</th>
+                                    <th className="p-3 w-16 text-center">ลบ</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-150 text-xs text-slate-700">
+                                {filteredFollowups.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="9" className="p-8 text-center text-slate-400 font-bold bg-white">ไม่พบบันทึกตรงตามเงื่อนไขที่กรองข้อมูล</td>
+                                    </tr>
+                                ) : (
+                                    filteredFollowups.map((f) => {
+                                        const hasEditPermission = currentUser.role === 'superadmin' || f.group === currentUser.hospital;
+
+                                        return (
+                                            <tr key={f.id} className="hover:bg-slate-50 even:bg-slate-50/25 transition-all">
+                                                <td className="p-2.5 text-center font-bold text-slate-400 bg-slate-50 border-r border-slate-100">{f.id}</td>
+                                                
+                                                {/* Patient Name */}
+                                                <td className="p-2 border-r border-slate-100">
+                                                    <input 
+                                                        type="text" 
+                                                        value={f.patientName} 
+                                                        disabled={!hasEditPermission}
+                                                        onChange={(e) => handleUpdateFollowup(f.id, 'patientName', e.target.value)}
+                                                        className="w-full bg-transparent hover:bg-slate-100 focus:bg-white px-2 py-1 rounded-lg border border-transparent focus:border-slate-300 font-bold outline-none transition disabled:bg-transparent disabled:text-slate-700"
+                                                    />
+                                                </td>
+
+                                                {/* Hospital Group selector */}
+                                                <td className="p-2 border-r border-slate-100">
+                                                    <select 
+                                                        value={f.group} 
+                                                        disabled={!hasEditPermission || currentUser.role !== 'superadmin'}
+                                                        onChange={(e) => handleUpdateFollowup(f.id, 'group', e.target.value)}
+                                                        className="w-full bg-transparent hover:bg-slate-100 focus:bg-white px-1.5 py-1 rounded-lg border border-transparent focus:border-slate-300 outline-none transition font-semibold text-slate-800 text-xxs"
+                                                    >
+                                                        {HOSPITALS.map((h, idx) => (
+                                                            <option key={idx} value={h}>{h.replace("โรงพยาบาลส่งเสริมสุขภาพตำบล", "รพ.สต.")}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+
+                                                {/* Round */}
+                                                <td className="p-2 border-r border-slate-100 text-center font-sans">
+                                                    <select 
+                                                        value={f.round || "2 สัปดาห์"} 
+                                                        disabled={!hasEditPermission}
+                                                        onChange={(e) => handleUpdateFollowup(f.id, 'round', e.target.value)}
+                                                        className="w-full bg-transparent hover:bg-slate-100 focus:bg-white px-1.5 py-1 rounded-lg border border-transparent focus:border-slate-300 outline-none transition font-extrabold text-blue-800 text-center text-xxs"
+                                                    >
+                                                        {TRACKING_ROUNDS.map((tr, idx) => (
+                                                            <option key={idx} value={tr.name}>{tr.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+
+                                                {/* Date with automatic BE text sync */}
+                                                <td className="p-2 border-r border-slate-100">
+                                                    <div className="flex flex-col">
+                                                        <input 
+                                                            type="date" 
+                                                            value={f.checkDate} 
+                                                            disabled={!hasEditPermission}
+                                                            onChange={(e) => handleUpdateFollowup(f.id, 'checkDate', e.target.value)}
+                                                            className="w-full bg-transparent hover:bg-slate-100 focus:bg-white px-1.5 py-0.5 rounded border border-transparent focus:border-slate-200 outline-none font-bold text-slate-900"
+                                                        />
+                                                        <span className="text-[9px] text-slate-400 font-bold px-1.5 block">
+                                                            {formatThaiDate(f.checkDate)}
+                                                        </span>
+                                                    </div>
+                                                </td>
+
+                                                {/* Attendance buttons */}
+                                                <td className="p-2 text-center border-r border-slate-100">
+                                                    <div className="flex justify-center space-x-1">
+                                                        <button 
+                                                            type="button"
+                                                            disabled={!hasEditPermission}
+                                                            onClick={() => handleUpdateFollowup(f.id, 'attended', true)}
+                                                            className={`px-2 py-1 rounded-lg text-[9px] font-extrabold transition-all ${f.attended ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-slate-100 text-slate-400'}`}
+                                                        >
+                                                            มาตรงนัด
+                                                        </button>
+                                                        <button 
+                                                            type="button"
+                                                            disabled={!hasEditPermission}
+                                                            onClick={() => handleUpdateFollowup(f.id, 'attended', false)}
+                                                            className={`px-2 py-1 rounded-lg text-[9px] font-extrabold transition-all ${!f.attended ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-400'}`}
+                                                        >
+                                                            ขาดนัด
+                                                        </button>
+                                                    </div>
+                                                </td>
+
+                                                {/* Urine test buttons */}
+                                                <td className="p-2 text-center border-r border-slate-100">
+                                                    {f.attended ? (
+                                                        <div className="flex justify-center space-x-1">
+                                                            <button 
+                                                                type="button"
+                                                                disabled={!hasEditPermission}
+                                                                onClick={() => handleUpdateFollowup(f.id, 'drugDetected', true)}
+                                                                className={`px-2 py-1 rounded-lg text-[9px] font-extrabold transition-all ${f.drugDetected ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-slate-100 text-slate-400'}`}
+                                                            >
+                                                                พบสาร
+                                                            </button>
+                                                            <button 
+                                                                type="button"
+                                                                disabled={!hasEditPermission}
+                                                                onClick={() => handleUpdateFollowup(f.id, 'drugDetected', false)}
+                                                                className={`px-2 py-1 rounded-lg text-[9px] font-extrabold transition-all ${f.drugDetected === false ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-400'}`}
+                                                            >
+                                                                ไม่พบ
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[10px] text-slate-400 italic font-bold">ยกเว้นตรวจ</span>
+                                                    )}
+                                                </td>
+
+                                                {/* Notes */}
+                                                <td className="p-2 border-r border-slate-100">
+                                                    <input 
+                                                        type="text" 
+                                                        value={f.note || ""} 
+                                                        disabled={!hasEditPermission}
+                                                        placeholder="พิมพ์ข้อความบันทึก..."
+                                                        onChange={(e) => handleUpdateFollowup(f.id, 'note', e.target.value)}
+                                                        className="w-full bg-transparent hover:bg-slate-100 focus:bg-white px-2 py-1 rounded border border-transparent focus:border-slate-300 text-slate-600 outline-none text-xxs transition font-semibold"
+                                                    />
+                                                </td>
+
+                                                {/* Delete button (Superadmin & Authorized Staff only) */}
+                                                <td className="p-2 text-center">
+                                                    {hasEditPermission ? (
+                                                        <button 
+                                                            onClick={() => triggerDeleteRequest(f.id, 'followup')} 
+                                                            className="text-rose-500 hover:text-rose-700 p-1.5 bg-rose-50 hover:bg-rose-100 rounded-lg transition"
+                                                        >
+                                                            <i className="fa-solid fa-trash-can text-xs"></i>
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-[10px] text-slate-300 italic"><i className="fa-solid fa-lock text-[8px]"></i> ล็อก</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        function UsersManagementView({ users, newUser, setNewUser, handleAddUser, handleDeleteUser }) {
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
+                    <div className="bg-white rounded-3xl shadow border border-slate-100 p-6 space-y-4 lg:col-span-1 h-fit">
+                        <div className="border-b border-slate-100 pb-3">
+                            <h3 className="font-extrabold text-slate-800 text-xs md:text-sm flex items-center space-x-1.5">
+                                <i className="fa-solid fa-user-gear text-indigo-600"></i>
+                                <span>เพิ่มเจ้าหน้าที่สิทธิ์ร่วม</span>
+                            </h3>
+                            <p className="text-[10px] text-slate-400 mt-0.5">ผูกบัญชีสังกัดเพื่อจำกัดการแก้ไขข้อมูลตามรพ.สต. เพื่อความปลอดภัยของข้อมูล</p>
+                        </div>
+
+                        <form onSubmit={handleAddUser} className="space-y-4 text-xs">
+                            <div>
+                                <label className="block text-xxs font-extrabold text-slate-700 mb-1">ชื่อบัญชีผู้ใช้งาน (Username) *</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="เช่น khoksaat_staff" 
+                                    value={newUser.username}
+                                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition font-semibold"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xxs font-extrabold text-slate-700 mb-1">รหัสรักษาความปลอดภัย (Password) *</label>
+                                <input 
+                                    type="password" 
+                                    placeholder="ระบุรหัสรักษาความปลอดภัย" 
+                                    value={newUser.password}
+                                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xxs font-extrabold text-slate-700 mb-1">ชื่อ-นามสกุลจริงผู้ใช้งาน *</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="เช่น นายประวิทย์ อักษรทอง" 
+                                    value={newUser.name}
+                                    onChange={(e) => setNewUser({...newUser, name: e.target.value})}
+                                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition font-semibold"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xxs font-extrabold text-slate-700 mb-1">บทบาทและระดับสิทธิ์การรักษาข้อมูล *</label>
+                                <select 
+                                    value={newUser.role}
+                                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700"
+                                >
+                                    <option value="staff">ผู้ใช้ทั่วไปประจำสังกัด (คีย์ข้อมูลและดูประวัติคนไข้ของหน่วยงานตนเองเท่านั้น)</option>
+                                    <option value="superadmin">ผู้ดูแลระบบสูงสุด (Super Admin - จัดการและลบข้อมูลได้ทั้งหมด)</option>
+                                </select>
+                            </div>
+
+                            {newUser.role === 'staff' && (
+                                <div>
+                                    <label className="block text-xxs font-extrabold text-slate-700 mb-1">โรงพยาบาล/รพ.สต. ที่ผูกสิทธิ์รับผิดชอบ *</label>
+                                    <select 
+                                        value={newUser.hospital}
+                                        onChange={(e) => setNewUser({...newUser, hospital: e.target.value})}
+                                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700"
+                                    >
+                                        {HOSPITALS.map((h, i) => <option key={i} value={h}>{h}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
+                            <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl transition shadow flex items-center justify-center space-x-1">
+                                <i className="fa-solid fa-user-shield"></i>
+                                <span>สร้างบัญชีผู้ใช้งานนี้</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <div className="bg-white rounded-3xl shadow border border-slate-100 p-6 space-y-4 lg:col-span-2">
+                        <div>
+                            <h3 className="font-extrabold text-slate-800 text-xs md:text-sm">รายชื่อแอดมินและบัญชีผู้ใช้ออนไลน์ในระบบ ({users.length} ราย)</h3>
+                            <p className="text-[10px] text-slate-400">บัญชีที่จัดเก็บร่วมบนคลาวด์ สามารถล็อคอินเข้าประเมินผลได้จริง</p>
+                        </div>
+
+                        <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                            <table className="w-full text-left border-collapse text-xxs md:text-xs">
+                                <thead className="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-100">
+                                    <tr>
+                                        <th className="p-3">ID</th>
+                                        <th className="p-3">บัญชีผู้ใช้</th>
+                                        <th className="p-3">รหัสความปลอดภัย</th>
+                                        <th className="p-3">ชื่อ - นามสกุลเต็ม</th>
+                                        <th className="p-3">บทบาทสิทธิ์</th>
+                                        <th className="p-3">หน่วยงานสถานพยาบาลที่ดูแล</th>
+                                        <th className="p-3 text-center">ลบ</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                                    {users.map((u) => (
+                                        <tr key={u.id} className="hover:bg-slate-50">
+                                            <td className="p-3 font-semibold text-slate-400">{u.id}</td>
+                                            <td className="p-3 font-bold text-indigo-700">{u.username}</td>
+                                            <td className="p-3 text-slate-400 font-mono">{u.password}</td>
+                                            <td className="p-3 text-slate-800 font-semibold">{u.name}</td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${u.role === 'superadmin' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'}`}>
+                                                    {u.role === 'superadmin' ? 'Super Admin' : 'Staff'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-slate-600 font-bold text-xxs">{u.hospital}</td>
+                                            <td className="p-3 text-center">
+                                                {u.username === 'admin' ? (
+                                                    <span className="text-slate-400 text-xxs italic">แอดมินหลัก (ลบไม่ได้)</span>
+                                                ) : (
+                                                    <button 
+                                                        onClick={() => handleDeleteUser(u.id)}
+                                                        className="text-rose-500 hover:text-rose-700 p-1.5 bg-rose-50 hover:bg-rose-100 rounded-lg transition"
+                                                    >
+                                                        <i className="fa-solid fa-trash-can"></i>
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Mount React Application
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+
+        // ระบบจะทำงานต่อเนื่องกันได้อย่างสมบูรณ์
+    </script>
+</body>
+</html>
